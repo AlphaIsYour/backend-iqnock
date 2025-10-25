@@ -10,6 +10,7 @@ use App\Models\Leaderboard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+
 class GameController extends Controller
 {
     public function getLevels(Request $request)
@@ -48,66 +49,90 @@ class GameController extends Controller
         ]);
     }
 
-    public function getQuestion(Request $request, $levelNumber)
-    {
-        $user = $request->user();
-        $level = Level::where('level_number', $levelNumber)->first();
+public function getQuestion(Request $request, $levelNumber)
+{
+    $user = $request->user();
+    $level = Level::where('level_number', $levelNumber)->first();
 
-        if (!$level) {
+    if (!$level) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Level not found'
+        ], 404);
+    }
+
+    // Check if level is unlocked
+    $progress = UserProgress::where('user_id', $user->id)
+                            ->where('level_id', $level->id)
+                            ->first();
+
+    if (!$progress || !$progress->is_unlocked) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Level is locked'
+        ], 403);
+    }
+
+    // Check if level is premium and user has enough coins
+    if ($level->is_premium && !$progress->is_unlocked) {
+        if ($user->coins < $level->coin_price) {
             return response()->json([
                 'success' => false,
-                'message' => 'Level not found'
-            ], 404);
-        }
-
-        // Check if level is unlocked
-        $progress = UserProgress::where('user_id', $user->id)
-                                ->where('level_id', $level->id)
-                                ->first();
-
-        if (!$progress || !$progress->is_unlocked) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Level is locked'
+                'message' => 'Not enough coins'
             ], 403);
         }
-
-        // Check if level is premium and user has enough coins
-        if ($level->is_premium && !$progress->is_unlocked) {
-            if ($user->coins < $level->coin_price) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Not enough coins'
-                ], 403);
-            }
-        }
-
-        $question = Question::where('level_id', $level->id)
-                           ->where('is_active', true)
-                           ->inRandomOrder()
-                           ->first();
-
-        if (!$question) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No question found for this level'
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'question_id' => $question->id,
-                'level_number' => $level->level_number,
-                'image_url' => $question->image_url,
-                'points' => $question->points,
-                'user_stats' => [
-                    'hearts' => $user->hearts,
-                    'hints' => $user->hints,
-                ]
-            ]
-        ]);
     }
+
+    $question = Question::where('level_id', $level->id)
+                       ->where('is_active', true)
+                       ->inRandomOrder()
+                       ->first();
+
+    if (!$question) {
+        return response()->json([
+            'success' => false,
+            'message' => 'No question found for this level'
+        ], 404);
+    }
+
+    // Get image path - remove /storage/ prefix if exists
+    $filename = basename($question->image_url);
+$imagePath = storage_path('app/public/questions/' . $filename);
+
+    // Debug - hapus setelah fix
+    logger('Image URL from DB: ' . $question->image_url);
+    logger('Full Path: ' . $imagePath);
+    logger('File exists: ' . (file_exists($imagePath) ? 'YES' : 'NO'));
+
+    if (!file_exists($imagePath)) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Image not found',
+            'debug' => [
+                'db_url' => $question->image_url,
+                'full_path' => $imagePath,
+            ]
+        ], 404);
+    }
+
+    // Read and encode image
+    $imageData = base64_encode(file_get_contents($imagePath));
+    $imageMime = mime_content_type($imagePath);
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'question_id' => $question->id,
+            'level_number' => $level->level_number,
+            'image_data' => 'data:' . $imageMime . ';base64,' . $imageData,
+            'points' => $question->points,
+            'user_stats' => [
+                'hearts' => $user->hearts,
+                'hints' => $user->hints,
+            ]
+        ]
+    ]);
+}
 
     public function submitAnswer(Request $request)
     {

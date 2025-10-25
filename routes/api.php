@@ -41,3 +41,15 @@ Route::prefix('v1')->group(function () {
         Route::get('/feedback/my', [FeedbackController::class, 'myFeedback']);
     });
 });
+
+Route::get('/storage/{path}', function ($path) {
+    $file = storage_path('app/public/' . $path);
+    
+    if (!file_exists($file)) {
+        abort(404);
+    }
+    
+    return response()->file($file, [
+        'Access-Control-Allow-Origin' => '*',
+    ]);
+})->where('path', '.*');

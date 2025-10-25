@@ -54,4 +54,8 @@ class Question extends Model
         
         return $hint;
     }
+    public function getImageUrlAttribute($value)
+    {
+        return asset($value);
+    }
 }

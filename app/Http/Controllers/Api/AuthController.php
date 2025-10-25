@@ -96,6 +96,23 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+    // 👇 TAMBAHKAN INI - Auto-unlock level 1 kalau belum ada
+    $level1 = Level::where('level_number', 1)->first();
+    if ($level1) {
+        UserProgress::firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'level_id' => $level1->id
+            ],
+            [
+                'is_unlocked' => true,
+                'is_completed' => false,
+                'attempts' => 0,
+            ]
+        );
+    }
 
         return response()->json([
             'success' => true,

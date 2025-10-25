@@ -10,19 +10,22 @@ class LeaderboardController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
         $leaderboard = Leaderboard::with('user:id,name')
-                                  ->orderBy('rank')
-                                  ->take(100)
-                                  ->get();
+                                ->orderBy('rank')
+                                ->take(100)
+                                ->get();
 
         return response()->json([
             'success' => true,
-            'data' => $leaderboard->map(function($entry) {
+            'data' => $leaderboard->map(function($entry) use ($user) {
                 return [
                     'rank' => $entry->rank,
+                    'user_id' => $entry->user_id, // 👈 Tambah ini
                     'user_name' => $entry->user->name,
                     'total_score' => $entry->total_score,
                     'levels_completed' => $entry->levels_completed,
+                    'is_current_user' => $entry->user_id === $user->id, // 👈 Tambah ini
                 ];
             })
         ]);

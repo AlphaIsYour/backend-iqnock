@@ -57,3 +57,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('leaderboard/{leaderboard}/reset', [LeaderboardController::class, 'reset'])->name('leaderboard.reset');
     });
 });
+
+Route::get('/storage/questions/{filename}', function ($filename) {
+    $file = storage_path('app/public/questions/' . $filename);
+    
+    if (!file_exists($file)) {
+        abort(404);
+    }
+    
+    $response = response()->file($file);
+    $response->headers->set('Access-Control-Allow-Origin', '*');
+    $response->headers->set('Access-Control-Allow-Methods', 'GET');
+    $response->headers->set('Access-Control-Allow-Headers', '*');
+    
+    return $response;
+});
