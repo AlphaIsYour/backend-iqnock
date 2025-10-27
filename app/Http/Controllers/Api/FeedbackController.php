@@ -11,12 +11,14 @@ class FeedbackController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'message' => 'required|string|max:1000',
+            'type' => 'required|in:bug,suggestion,question_idea',
+            'content' => 'required|string|max:1000',
         ]);
 
         $feedback = Feedback::create([
             'user_id' => $request->user()->id,
-            'message' => $request->message,
+            'type' => $request->type,
+            'message' => $request->input('content'),
             'status' => 'pending',
         ]);
 
