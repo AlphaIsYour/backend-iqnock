@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function () {
         // Auth
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/profile', [AuthController::class, 'profile']);
+        Route::put('/profile/update', [AuthController::class, 'updateProfile']);
         
         // Game
         Route::get('/levels', [GameController::class, 'getLevels']);
