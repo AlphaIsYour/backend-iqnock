@@ -7,40 +7,53 @@ use App\Models\Level;
 
 class LevelSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
-        $levels = [];
+        // TIDAK PERLU truncate jika sudah ada data
+        // Level::truncate();
 
-        // Level 1-10 (Free)
-        for ($i = 1; $i <= 10; $i++) {
-            $levels[] = [
-                'level_number' => $i,
-                'level_name' => "Level $i",
-                'is_premium' => false,
-                'coin_price' => 0,
-                'reward_coins' => $i == 10 ? 100 : 0, // Reward 100 coins setelah level 10
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        // Level 11-20 (Premium)
+        // Update level 11-20 jadi premium
         for ($i = 11; $i <= 20; $i++) {
-            $levels[] = [
-                'level_number' => $i,
-                'level_name' => "Level $i - Premium",
-                'is_premium' => true,
-                'coin_price' => 50, // Harga 50 coins per level premium
-                'reward_coins' => $i == 20 ? 200 : 0, // Reward 200 coins setelah level 20
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
+            Level::updateOrCreate(
+                ['level_number' => $i],
+                [
+                    'level_name' => "Level $i",
+                    'is_premium' => true,
+                    'coin_price' => 80,
+                    'reward_coins' => ($i == 20) ? 100 : 0,
+                    'is_active' => true,
+                ]
+            );
         }
 
-        Level::insert($levels);
+        // Update level 21-30 jadi premium
+        for ($i = 21; $i <= 30; $i++) {
+            Level::updateOrCreate(
+                ['level_number' => $i],
+                [
+                    'level_name' => "Level $i",
+                    'is_premium' => true,
+                    'coin_price' => 80,
+                    'reward_coins' => ($i == 30) ? 100 : 0,
+                    'is_active' => true,
+                ]
+            );
+        }
 
-        $this->command->info('✅ 20 Levels created (1-10 Free, 11-20 Premium)!');
+        // Jika mau buat level baru 31-40
+        for ($i = 31; $i <= 40; $i++) {
+            Level::updateOrCreate(
+                ['level_number' => $i],
+                [
+                    'level_name' => "Level $i",
+                    'is_premium' => true,
+                    'coin_price' => 80,
+                    'reward_coins' => ($i == 40) ? 100 : 0,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        echo "Level premium berhasil disetup!\n";
     }
 }
