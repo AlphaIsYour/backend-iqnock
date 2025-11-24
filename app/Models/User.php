@@ -19,6 +19,7 @@ class User extends Authenticatable
         'hearts',
         'hints',
         'current_level',
+        'highest_level',
         'total_score',
     ];
 
@@ -72,6 +73,14 @@ class User extends Authenticatable
             return true;
         }
         return false;
+    }
+
+    public function updateHighestLevel()
+    {
+        if ($this->current_level > $this->highest_level) {
+            $this->highest_level = $this->current_level;
+            $this->save();
+        }
     }
 
     public function useHeart()

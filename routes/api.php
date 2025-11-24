@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
         // Feedback
         Route::post('/feedback', [FeedbackController::class, 'store']);
         Route::get('/feedback/my', [FeedbackController::class, 'myFeedback']);
+        Route::post('/reset-group-levels', [GameController::class, 'resetGroupLevels']);
     });
 });
 
