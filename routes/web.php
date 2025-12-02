@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\LevelController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\FeedbackController;
 use App\Http\Controllers\Admin\LeaderboardController;
+use Illuminate\Support\Facades\File;  
+use Illuminate\Support\Facades\Response;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,3 +74,20 @@ Route::get('/storage/questions/{filename}', function ($filename) {
     
     return $response;
 });
+
+// Route untuk mengambil file dari storage/app/public
+Route::get('my-storage/{folder}/{filename}', function ($folder, $filename) {
+    $path = storage_path("app/public/{$folder}/{$filename}");
+
+    if (!File::exists($path)) {
+        abort(404);
+    }
+
+    $file = File::get($path);
+    $type = File::mimeType($path);
+
+    $response = Response::make($file, 200);
+    $response->header("Content-Type", $type);
+
+    return $response;
+})->where('folder', '.*'); // Memastikan folder bisa mengandung sub-folder

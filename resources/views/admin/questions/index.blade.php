@@ -44,8 +44,12 @@
                 @forelse($questions as $question)
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4">{{ $question->id }}</td>
+                    <?php 
+                    // Hapus URL domain dan /storage/ dari path gambar
+                    $cleanPath = str_replace(url('storage/'), '', $question->image_url);
+                    ?>
                     <td class="px-6 py-4">
-                        <img src="{{ $question->image_url }}" alt="Question" class="w-20 h-16 object-cover rounded">
+                    <img src="{{ url('my-storage/' . $cleanPath) }}" alt="Question" class="w-20 h-16 object-cover rounded">
                     </td>
                     <td class="px-6 py-4">
                         <span class="bg-maroon text-white px-2 py-1 rounded text-xs">

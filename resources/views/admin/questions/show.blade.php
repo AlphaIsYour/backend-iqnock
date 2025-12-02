@@ -8,7 +8,11 @@
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <!-- Question Image -->
         <div class="bg-gray-900 p-8">
-            <img src="{{ $question->image_url }}" alt="Question Image" class="w-full max-w-2xl mx-auto rounded-lg shadow-2xl">
+                    <?php 
+                    // Hapus URL domain dan /storage/ dari path gambar
+                    $cleanPath = str_replace(url('storage/'), '', $question->image_url);
+                    ?>
+                    <img src="{{ url('my-storage/' . $cleanPath) }}" alt="Question" class="w-20 h-16 object-cover rounded" alt="Question Image" class="w-full max-w-2xl mx-auto rounded-lg shadow-2xl">
         </div>
 
         <!-- Question Info -->
