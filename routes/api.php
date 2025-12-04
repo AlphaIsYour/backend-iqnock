@@ -7,12 +7,7 @@ use App\Http\Controllers\Api\GameController;
 use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\FeedbackController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-*/
-
+// Test route tanpa prefix dulu
 Route::get('/test', function() {
     return response()->json(['message' => 'API Works!']);
 });
