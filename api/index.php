@@ -1,26 +1,21 @@
 <?php
 
-define('LARAVEL_START', microtime(true));
+// Test 1: Apakah PHP jalan?
+echo "PHP Works\n";
 
-// Set proper paths for serverless
-$_ENV['APP_BASE_PATH'] = dirname(__DIR__);
-
-// Register the Composer autoloader
+// Test 2: Apakah autoload jalan?
 require __DIR__ . '/../vendor/autoload.php';
+echo "Autoload Works\n";
 
-// Bootstrap Laravel
+// Test 3: Apakah bootstrap jalan?
 $app = require_once __DIR__ . '/../bootstrap/app.php';
+echo "Bootstrap Works\n";
 
-// Set storage path for serverless
-$app->useStoragePath($_ENV['APP_BASE_PATH'] . '/storage');
-
-// Handle the request
+// Test 4: Apakah request handling jalan?
 $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-
 $response = $kernel->handle(
     $request = Illuminate\Http\Request::capture()
 );
 
 $response->send();
-
 $kernel->terminate($request, $response);
