@@ -1,21 +1,28 @@
 <?php
 
-// Test 1: Apakah PHP jalan?
-echo "PHP Works\n";
+define('LARAVEL_START', microtime(true));
 
-// Test 2: Apakah autoload jalan?
 require __DIR__ . '/../vendor/autoload.php';
-echo "Autoload Works\n";
 
-// Test 3: Apakah bootstrap jalan?
 $app = require_once __DIR__ . '/../bootstrap/app.php';
-echo "Bootstrap Works\n";
 
-// Test 4: Apakah request handling jalan?
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-$response = $kernel->handle(
-    $request = Illuminate\Http\Request::capture()
-);
-
-$response->send();
-$kernel->terminate($request, $response);
+try {
+    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    
+    $response = $kernel->handle(
+        $request = Illuminate\Http\Request::capture()
+    );
+    
+    $response->send();
+    
+    $kernel->terminate($request, $response);
+} catch (\Throwable $e) {
+    // Kalau error, tampilkan sebagai JSON
+    header('Content-Type: application/json');
+    echo json_encode([
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+    ]);
+}
