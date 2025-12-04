@@ -5,11 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Question;
 use App\Models\Level;
+use App\Services\CloudinaryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class QuestionController extends Controller
 {
+    protected $cloudinary;
+
+    public function __construct(CloudinaryService $cloudinary)
+    {
+        $this->cloudinary = $cloudinary;
+    }
+
     public function index(Request $request)
     {
         $query = Question::with('level');
@@ -40,11 +47,22 @@ class QuestionController extends Controller
             'is_active' => 'required|boolean',
         ]);
 
-        $imagePath = $request->file('image')->store('questions', 'public');
+        // Upload ke Cloudinary
+        $uploadResult = $this->cloudinary->uploadOptimized(
+            $request->file('image'),
+            'questions', // folder di Cloudinary
+            1200, // max width
+            85    // quality
+        );
+
+        if (!$uploadResult) {
+            return back()->with('error', 'Failed to upload image')->withInput();
+        }
 
         Question::create([
             'level_id' => $request->level_id,
-            'image_url' => Storage::url($imagePath),
+            'image_url' => $uploadResult['url'],
+            'cloudinary_public_id' => $uploadResult['public_id'],
             'correct_answer' => strtoupper($request->correct_answer),
             'points' => $request->points,
             'is_active' => $request->is_active,
@@ -81,15 +99,27 @@ class QuestionController extends Controller
             'is_active' => $request->is_active,
         ];
 
+        // Jika ada gambar baru
         if ($request->hasFile('image')) {
-            // Delete old image
-            if ($question->image_url) {
-                $oldPath = str_replace('/storage/', '', $question->image_url);
-                Storage::disk('public')->delete($oldPath);
+            // Hapus gambar lama dari Cloudinary
+            if ($question->cloudinary_public_id) {
+                $this->cloudinary->delete($question->cloudinary_public_id);
             }
 
-            $imagePath = $request->file('image')->store('questions', 'public');
-            $data['image_url'] = Storage::url($imagePath);
+            // Upload gambar baru
+            $uploadResult = $this->cloudinary->uploadOptimized(
+                $request->file('image'),
+                'questions',
+                1200,
+                85
+            );
+
+            if (!$uploadResult) {
+                return back()->with('error', 'Failed to upload new image')->withInput();
+            }
+
+            $data['image_url'] = $uploadResult['url'];
+            $data['cloudinary_public_id'] = $uploadResult['public_id'];
         }
 
         $question->update($data);
@@ -99,10 +129,9 @@ class QuestionController extends Controller
 
     public function destroy(Question $question)
     {
-        // Delete image
-        if ($question->image_url) {
-            $imagePath = str_replace('/storage/', '', $question->image_url);
-            Storage::disk('public')->delete($imagePath);
+        // Delete image dari Cloudinary
+        if ($question->cloudinary_public_id) {
+            $this->cloudinary->delete($question->cloudinary_public_id);
         }
 
         $question->delete();

@@ -10,7 +10,14 @@ use App\Http\Controllers\Admin\FeedbackController;
 use App\Http\Controllers\Admin\LeaderboardController;
 use Illuminate\Support\Facades\File;  
 use Illuminate\Support\Facades\Response;
+use App\Http\Controllers\ImageController;
 
+Route::post('/upload', [ImageController::class, 'upload']);
+Route::post('/upload-optimized', [ImageController::class, 'uploadOptimized']);
+Route::post('/upload-thumbnail', [ImageController::class, 'uploadThumbnail']);
+Route::delete('/delete', [ImageController::class, 'delete']);
+Route::post('/update', [ImageController::class, 'update']);
+Route::post('/responsive-urls', [ImageController::class, 'getResponsiveUrls']);
 /*
 |--------------------------------------------------------------------------
 | Web Routes

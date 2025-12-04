@@ -12,6 +12,7 @@ class Question extends Model
     protected $fillable = [
         'level_id',
         'image_url',
+        'cloudinary_public_id',
         'correct_answer',
         'points',
         'is_active',

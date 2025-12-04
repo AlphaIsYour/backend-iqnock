@@ -12,7 +12,7 @@
                     // Hapus URL domain dan /storage/ dari path gambar
                     $cleanPath = str_replace(url('storage/'), '', $question->image_url);
                     ?>
-                    <img src="{{ url('my-storage/' . $cleanPath) }}" alt="Question" class="w-20 h-16 object-cover rounded" alt="Question Image" class="w-full max-w-2xl mx-auto rounded-lg shadow-2xl">
+                    <img src="{{ url($cleanPath) }}" alt="Question" class="w-20 h-16 object-cover rounded" alt="Question Image" class="w-full max-w-2xl mx-auto rounded-lg shadow-2xl">
         </div>
 
         <!-- Question Info -->

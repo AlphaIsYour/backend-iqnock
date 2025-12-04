@@ -27,11 +27,7 @@
 
             <div class="mb-4">
                 <label class="block text-gray-700 font-bold mb-2">Current Image</label>
-                    <?php 
-                    // Hapus URL domain dan /storage/ dari path gambar
-                    $cleanPath = str_replace(url('storage/'), '', $question->image_url);
-                    ?>
-                    <img src="{{ url('my-storage/' . $cleanPath) }}" alt="Current Question" class="w-full max-w-md h-48 object-cover rounded border-2 border-gray-300 mb-2">
+                <img src="{{ $question->image_url }}" alt="Current Question" class="w-full max-w-md h-48 object-cover rounded border-2 border-gray-300 mb-2">
             </div>
 
             <div class="mb-4">
