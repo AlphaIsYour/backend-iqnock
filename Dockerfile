@@ -25,10 +25,7 @@ RUN composer install --no-dev --optimize-autoloader
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose port
-EXPOSE 8080
-
-# Start Laravel
+# Start Laravel (Railway auto-inject $PORT)
 CMD php artisan config:cache && \
     php artisan route:cache && \
-    php artisan serve --host=0.0.0.0 --port=8080
+    php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
