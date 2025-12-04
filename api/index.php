@@ -1,7 +1,21 @@
 <?php
 
-// Set the base path
-$_SERVER['DOCUMENT_ROOT'] = __DIR__ . '/../public';
+// Define base path
+define('LARAVEL_START', microtime(true));
 
-// Load the application
-require __DIR__ . '/../public/index.php';
+// Register the Composer autoloader
+require __DIR__ . '/../vendor/autoload.php';
+
+// Bootstrap Laravel
+$app = require_once __DIR__ . '/../bootstrap/app.php';
+
+// Handle the request
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+$response = $kernel->handle(
+    $request = Illuminate\Http\Request::capture()
+);
+
+$response->send();
+
+$kernel->terminate($request, $response);
