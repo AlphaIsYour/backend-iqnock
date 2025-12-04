@@ -13,6 +13,10 @@ use App\Http\Controllers\Api\FeedbackController;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/test', function() {
+    return response()->json(['message' => 'API Works!']);
+});
+
 // Public routes
 Route::prefix('v1')->group(function () {
     // Auth
