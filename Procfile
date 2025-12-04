@@ -1,1 +1,1 @@
-web: frankenphp run --config Caddyfile --adapter caddyfile
+web: frankenphp php-server --listen 0.0.0.0:${PORT} --root /app/public
