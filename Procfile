@@ -1,1 +1,1 @@
-web: frankenphp php-server --listen 0.0.0.0:$PORT --root /app/public
+web: php artisan serve --host=0.0.0.0 --port=$PORT

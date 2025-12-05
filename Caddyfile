@@ -1,9 +1,0 @@
-{
-    auto_https off
-    admin off
-}
-
-:{$PORT} {
-    root * /app/public
-    php_server
-}
