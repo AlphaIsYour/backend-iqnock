@@ -144,25 +144,13 @@ class GameController extends Controller
             ], 404);
         }
 
-        $filename = basename($question->image_url);
-        $imagePath = storage_path('app/public/questions/' . $filename);
-
-        if (!file_exists($imagePath)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Image not found'
-            ], 404);
-        }
-
-        $imageData = base64_encode(file_get_contents($imagePath));
-        $imageMime = mime_content_type($imagePath);
-
+        // ✅ FIX: Return URL Cloudinary langsung, BUKAN base64 lagi!
         return response()->json([
             'success' => true,
             'data' => [
                 'question_id' => $question->id,
                 'level_number' => $level->level_number,
-                'image_data' => 'data:' . $imageMime . ';base64,' . $imageData,
+                'image_url' => $question->image_url, // 👈 Langsung return URL Cloudinary
                 'points' => $question->points,
                 'user_stats' => [
                     'hearts' => $user->hearts,
