@@ -22,6 +22,9 @@ class GameController extends Controller
         $levelsData = $levels->map(function($level) use ($user) {
             $progress = $level->userProgress->first();
             
+            // ✅ BEST PRACTICE: Tentukan unlock logic dengan jelas
+            $isUnlocked = $this->determineUnlockStatus($level, $progress, $user);
+            
             return [
                 'id' => $level->id,
                 'level_number' => $level->level_number,
@@ -29,7 +32,7 @@ class GameController extends Controller
                 'is_premium' => $level->is_premium,
                 'coin_price' => $level->coin_price,
                 'reward_coins' => $level->reward_coins,
-                'is_unlocked' => $progress ? $progress->is_unlocked : false,
+                'is_unlocked' => $isUnlocked,
                 'is_completed' => $progress ? $progress->is_completed : false,
             ];
         });
@@ -48,6 +51,35 @@ class GameController extends Controller
         ]);
     }
 
+    /**
+     * ✅ BEST PRACTICE: Pisahkan logic unlock ke method terpisah
+     * Ini bikin code lebih clean, testable, dan mudah di-maintain
+     */
+    private function determineUnlockStatus($level, $progress, $user)
+    {
+        // 1. Kalau ada progress, pakai status dari database
+        if ($progress) {
+            return $progress->is_unlocked;
+        }
+        
+        // 2. Kalau belum ada progress, tentukan berdasarkan tipe level
+        if ($level->is_premium) {
+            // Premium level: default locked
+            return false;
+        }
+        
+        // 3. Free level: cek apakah ini level awal grup (1, 11, 21, dst)
+        // Level awal grup selalu unlock by default
+        $groupStart = (int)(($level->level_number - 1) / 10) * 10 + 1;
+        
+        if ($level->level_number == $groupStart) {
+            return true;
+        }
+        
+        // 4. Free level non-awal grup: unlock kalau user sudah sampai level ini
+        return $level->level_number <= $user->current_level;
+    }
+
     public function getQuestion(Request $request, $levelNumber)
     {
         $user = $request->user();
@@ -64,6 +96,22 @@ class GameController extends Controller
         $progress = UserProgress::where('user_id', $user->id)
                                 ->where('level_id', $level->id)
                                 ->first();
+
+        // ✅ BEST PRACTICE: Auto-create progress untuk free level yang belum ada
+        if (!$progress && !$level->is_premium) {
+            $groupStart = (int)(($level->level_number - 1) / 10) * 10 + 1;
+            
+            // Auto unlock kalau ini level awal grup atau user sudah sampai level ini
+            if ($level->level_number == $groupStart || $level->level_number <= $user->current_level) {
+                $progress = UserProgress::create([
+                    'user_id' => $user->id,
+                    'level_id' => $level->id,
+                    'is_unlocked' => true,
+                    'is_completed' => false,
+                    'attempts' => 0,
+                ]);
+            }
+        }
 
         // Cek apakah level premium sudah dibeli (is_unlocked = purchased)
         if ($level->is_premium) {
@@ -165,39 +213,8 @@ class GameController extends Controller
                     // Berikan reward coins di setiap akhir grup (level 10, 20, 30, dst)
                     $user->addCoins($level->reward_coins);
                     
-                    // Unlock next level (baik free maupun premium yang sudah dibeli)
-                    $nextLevel = Level::where('level_number', $level->level_number + 1)->first();
-                    if ($nextLevel) {
-                        // Cek apakah next level adalah premium
-                        if ($nextLevel->is_premium) {
-                            // Cek apakah grup premium sudah dibeli
-                            // Dengan cara cek apakah level pertama di grup sudah unlock
-                            $nextGroupStart = (int)(($nextLevel->level_number - 1) / 10) * 10 + 1;
-                            $firstLevelInNextGroup = Level::where('level_number', $nextGroupStart)->first();
-                            
-                            $firstProgress = UserProgress::where('user_id', $user->id)
-                                                         ->where('level_id', $firstLevelInNextGroup->id)
-                                                         ->first();
-                            
-                            // Jika grup premium sudah dibeli (level pertama unlocked), unlock level berikutnya
-                            if ($firstProgress && $firstProgress->is_unlocked) {
-                                UserProgress::updateOrCreate(
-                                    ['user_id' => $user->id, 'level_id' => $nextLevel->id],
-                                    ['is_unlocked' => true]
-                                );
-                                $user->unlockNextLevel();
-                                $user->updateHighestLevel();
-                            }
-                        } else {
-                            // Free level, unlock langsung
-                            UserProgress::updateOrCreate(
-                                ['user_id' => $user->id, 'level_id' => $nextLevel->id],
-                                ['is_unlocked' => true]
-                            );
-                            $user->unlockNextLevel();
-                            $user->updateHighestLevel();
-                        }
-                    }
+                    // ✅ BEST PRACTICE: Pisahkan unlock next level ke method terpisah
+                    $this->unlockNextLevel($user, $level);
                 }
             });
 
@@ -215,53 +232,21 @@ class GameController extends Controller
         } else {
             $user->useHeart();
 
-if ($user->hearts <= 0) {
-    // Hitung grup level yang sedang dimainkan
-    $currentGroupStart = (int)(($level->level_number - 1) / 10) * 10 + 1;
-    $currentGroupEnd = $currentGroupStart + 9;
-    
-    // Reset progress di grup ini
-    $levels = Level::whereBetween('level_number', [$currentGroupStart, $currentGroupEnd])->get();
-    
-    foreach ($levels as $lvl) {
-        $prog = UserProgress::where('user_id', $user->id)
-                           ->where('level_id', $lvl->id)
-                           ->first();
-        
-        if ($prog) {
-            if ($lvl->level_number == $currentGroupStart) {
-                // Level pertama grup tetap unlock tapi reset completed
-                $prog->update([
-                    'is_completed' => false,
-                    'attempts' => 0,
-                ]);
-            } else {
-                // Level lain di-lock
-                $prog->update([
-                    'is_unlocked' => false,
-                    'is_completed' => false,
-                    'attempts' => 0,
+            if ($user->hearts <= 0) {
+                // ✅ BEST PRACTICE: Pisahkan reset logic ke method terpisah
+                $this->resetCurrentGroup($user, $level);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Game over!',
+                    'data' => [
+                        'is_correct' => false,
+                        'hearts' => $user->hearts,
+                        'game_over' => true,
+                        'reset_to_level' => $user->current_level,
+                    ]
                 ]);
             }
-        }
-    }
-    
-    $user->current_level = $currentGroupStart;
-    $user->resetHearts();
-    $user->hints = 5; // Reset hints juga
-    $user->save();
-
-    return response()->json([
-        'success' => false,
-        'message' => 'Game over!',
-        'data' => [
-            'is_correct' => false,
-            'hearts' => $user->hearts,
-            'game_over' => true,
-            'reset_to_level' => $currentGroupStart,
-        ]
-    ]);
-}
 
             return response()->json([
                 'success' => false,
@@ -272,6 +257,88 @@ if ($user->hearts <= 0) {
                 ]
             ]);
         }
+    }
+
+    /**
+     * ✅ BEST PRACTICE: Method terpisah untuk unlock next level
+     * Memudahkan maintenance dan testing
+     */
+    private function unlockNextLevel($user, $currentLevel)
+    {
+        $nextLevel = Level::where('level_number', $currentLevel->level_number + 1)->first();
+        
+        if (!$nextLevel) {
+            return; // Sudah level terakhir
+        }
+
+        // Cek apakah next level adalah premium
+        if ($nextLevel->is_premium) {
+            // Cek apakah grup premium sudah dibeli
+            $nextGroupStart = (int)(($nextLevel->level_number - 1) / 10) * 10 + 1;
+            $firstLevelInNextGroup = Level::where('level_number', $nextGroupStart)->first();
+            
+            $firstProgress = UserProgress::where('user_id', $user->id)
+                                         ->where('level_id', $firstLevelInNextGroup->id)
+                                         ->first();
+            
+            // Jika grup premium sudah dibeli, unlock level berikutnya
+            if ($firstProgress && $firstProgress->is_unlocked) {
+                UserProgress::updateOrCreate(
+                    ['user_id' => $user->id, 'level_id' => $nextLevel->id],
+                    ['is_unlocked' => true, 'is_completed' => false, 'attempts' => 0]
+                );
+                $user->unlockNextLevel();
+                $user->updateHighestLevel();
+            }
+        } else {
+            // Free level, unlock langsung
+            UserProgress::updateOrCreate(
+                ['user_id' => $user->id, 'level_id' => $nextLevel->id],
+                ['is_unlocked' => true, 'is_completed' => false, 'attempts' => 0]
+            );
+            $user->unlockNextLevel();
+            $user->updateHighestLevel();
+        }
+    }
+
+    /**
+     * ✅ BEST PRACTICE: Method terpisah untuk reset grup
+     */
+    private function resetCurrentGroup($user, $level)
+    {
+        $currentGroupStart = (int)(($level->level_number - 1) / 10) * 10 + 1;
+        $currentGroupEnd = $currentGroupStart + 9;
+        
+        // Reset progress di grup ini
+        $levels = Level::whereBetween('level_number', [$currentGroupStart, $currentGroupEnd])->get();
+        
+        foreach ($levels as $lvl) {
+            $prog = UserProgress::where('user_id', $user->id)
+                               ->where('level_id', $lvl->id)
+                               ->first();
+            
+            if ($prog) {
+                if ($lvl->level_number == $currentGroupStart) {
+                    // Level pertama grup tetap unlock tapi reset completed
+                    $prog->update([
+                        'is_completed' => false,
+                        'attempts' => 0,
+                    ]);
+                } else {
+                    // Level lain di-lock
+                    $prog->update([
+                        'is_unlocked' => false,
+                        'is_completed' => false,
+                        'attempts' => 0,
+                    ]);
+                }
+            }
+        }
+        
+        $user->current_level = $currentGroupStart;
+        $user->resetHearts();
+        $user->hints = 5;
+        $user->save();
     }
 
     public function useHint(Request $request)
@@ -302,62 +369,62 @@ if ($user->hearts <= 0) {
     }
 
     public function resetGroupLevels(Request $request)
-{
-    $request->validate([
-        'group_start' => 'required|integer',
-        'group_end' => 'required|integer',
-    ]);
+    {
+        $request->validate([
+            'group_start' => 'required|integer',
+            'group_end' => 'required|integer',
+        ]);
 
-    $user = $request->user();
-    $groupStart = $request->group_start;
-    $groupEnd = $request->group_end;
+        $user = $request->user();
+        $groupStart = $request->group_start;
+        $groupEnd = $request->group_end;
 
-    DB::transaction(function() use ($user, $groupStart, $groupEnd) {
-        // Get all levels in the group
-        $levels = Level::whereBetween('level_number', [$groupStart, $groupEnd])->get();
+        DB::transaction(function() use ($user, $groupStart, $groupEnd) {
+            // Get all levels in the group
+            $levels = Level::whereBetween('level_number', [$groupStart, $groupEnd])->get();
 
-        foreach ($levels as $level) {
-            $progress = UserProgress::where('user_id', $user->id)
-                                   ->where('level_id', $level->id)
-                                   ->first();
+            foreach ($levels as $level) {
+                $progress = UserProgress::where('user_id', $user->id)
+                                       ->where('level_id', $level->id)
+                                       ->first();
 
-            if ($progress) {
-                // Reset semua level KECUALI level pertama grup (1, 11, 21, dst)
-                if ($level->level_number == $groupStart) {
-                    // Level pertama tetap unlocked tapi jadi not completed
-                    $progress->update([
-                        'is_unlocked' => true,
-                        'is_completed' => false,
-                        'attempts' => 0,
-                    ]);
-                } else {
-                    // Level lainnya di-lock
-                    $progress->update([
-                        'is_unlocked' => false,
-                        'is_completed' => false,
-                        'attempts' => 0,
-                    ]);
+                if ($progress) {
+                    // Reset semua level KECUALI level pertama grup (1, 11, 21, dst)
+                    if ($level->level_number == $groupStart) {
+                        // Level pertama tetap unlocked tapi jadi not completed
+                        $progress->update([
+                            'is_unlocked' => true,
+                            'is_completed' => false,
+                            'attempts' => 0,
+                        ]);
+                    } else {
+                        // Level lainnya di-lock
+                        $progress->update([
+                            'is_unlocked' => false,
+                            'is_completed' => false,
+                            'attempts' => 0,
+                        ]);
+                    }
                 }
             }
-        }
 
-        // Reset hearts dan hints
-        $user->hearts = 5;
-        $user->hints = 5;
-        $user->current_level = $groupStart; // Set ke level awal grup
-        $user->save();
-    });
+            // Reset hearts dan hints
+            $user->hearts = 5;
+            $user->hints = 5;
+            $user->current_level = $groupStart;
+            $user->save();
+        });
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Group levels reset successfully',
-        'data' => [
-            'hearts' => $user->hearts,
-            'hints' => $user->hints,
-            'current_level' => $user->current_level,
-        ]
-    ]);
-}
+        return response()->json([
+            'success' => true,
+            'message' => 'Group levels reset successfully',
+            'data' => [
+                'hearts' => $user->hearts,
+                'hints' => $user->hints,
+                'current_level' => $user->current_level,
+            ]
+        ]);
+    }
 
     public function unlockPremiumLevel(Request $request, $levelNumber)
     {
@@ -408,7 +475,7 @@ if ($user->hearts <= 0) {
             
             UserProgress::updateOrCreate(
                 ['user_id' => $user->id, 'level_id' => $firstLevel->id],
-                ['is_unlocked' => true]
+                ['is_unlocked' => true, 'is_completed' => false, 'attempts' => 0]
             );
         });
 
