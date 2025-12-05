@@ -1,9 +1,9 @@
 {
-    order php_server last
+    auto_https off
 }
 
 :8080 {
-    root * public
+    root * /app/public
     php_server
     file_server
 }
